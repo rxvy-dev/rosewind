@@ -14,9 +14,9 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with: { gradle-version: '8.9' }
       - run: gradle assembleDebug --no-daemon
-      - run: cp app/build/outputs/apk/debug/app-debug.apk Wayglass.apk
+      - run: cp app/build/outputs/apk/debug/app-debug.apk Rosewind.apk
       - uses: actions/upload-artifact@v4
-        with: { name: Wayglass-apk, path: Wayglass.apk }
+        with: { name: Rosewind-apk, path: Rosewind.apk }
       - uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/v')
-        with: { files: Wayglass.apk }
+        with: { files: Rosewind.apk }
