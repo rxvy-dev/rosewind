@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/root" android:layout_width="match_parent" android:layout_height="match_parent">
+
+    <org.osmdroid.views.MapView android:id="@+id/map" android:layout_width="match_parent" android:layout_height="match_parent" />
+
+    <LinearLayout android:id="@+id/top" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:padding="12dp">
+
+        <com.google.android.material.card.MaterialCardView android:layout_width="match_parent" android:layout_height="56dp"
+            app:cardCornerRadius="28dp" app:cardElevation="6dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent"
+                android:gravity="center_vertical" android:orientation="horizontal" android:paddingStart="16dp" android:paddingEnd="8dp">
+                <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_search"
+                    app:tint="?attr/colorOnSurfaceVariant" android:importantForAccessibility="no" />
+                <EditText android:id="@+id/query" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent"
+                    android:background="@null" android:hint="Search places" android:imeOptions="actionSearch"
+                    android:inputType="text" android:maxLines="1" android:paddingStart="12dp" android:paddingEnd="8dp" android:textSize="16sp" />
+                <ImageButton android:id="@+id/clear" android:layout_width="40dp" android:layout_height="40dp" android:padding="8dp"
+                    android:src="@drawable/ic_close" app:tint="?attr/colorOnSurfaceVariant" android:visibility="gone"
+                    android:background="?attr/selectableItemBackgroundBorderless" android:contentDescription="Clear" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.chip.ChipGroup android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" app:singleSelection="true" app:selectionRequired="true" app:chipSpacingHorizontal="8dp">
+            <com.google.android.material.chip.Chip android:id="@+id/chipMap" style="@style/Widget.Material3.Chip.Filter"
+                android:text="Map" android:checked="true" app:chipBackgroundColor="@color/chip_bg" app:chipStrokeWidth="0dp" android:elevation="3dp" />
+            <com.google.android.material.chip.Chip android:id="@+id/chipSat" style="@style/Widget.Material3.Chip.Filter"
+                android:text="Satellite" app:chipBackgroundColor="@color/chip_bg" app:chipStrokeWidth="0dp" android:elevation="3dp" />
+            <com.google.android.material.chip.Chip android:id="@+id/chipTopo" style="@style/Widget.Material3.Chip.Filter"
+                android:text="Terrain" app:chipBackgroundColor="@color/chip_bg" app:chipStrokeWidth="0dp" android:elevation="3dp" />
+        </com.google.android.material.chip.ChipGroup>
+    </LinearLayout>
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton android:id="@+id/locate"
+        android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|end"
+        android:layout_margin="20dp" android:contentDescription="My location" app:srcCompat="@drawable/ic_my_location" />
+</FrameLayout>

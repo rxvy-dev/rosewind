@@ -1,76 +1,126 @@
 package org.openmaps.app
 
 import android.Manifest
-import android.app.Activity
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Bundle
-import android.view.Gravity
-import android.view.ViewGroup.LayoutParams.MATCH_PARENT
-import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
-import android.view.inputmethod.EditorInfo
-import android.widget.*
+import android.text.Editable
+import android.text.TextWatcher
+import android.view.View
+import android.view.inputmethod.InputMethodManager
+import android.widget.EditText
+import android.widget.FrameLayout
+import android.widget.ImageButton
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import com.google.android.material.chip.Chip
+import com.google.android.material.floatingactionbutton.FloatingActionButton
 import org.json.JSONArray
 import org.osmdroid.config.Configuration
+import org.osmdroid.tileprovider.MapTileProviderBasic
 import org.osmdroid.tileprovider.tilesource.OnlineTileSourceBase
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.util.MapTileIndex
+import org.osmdroid.views.CustomZoomButtonsController
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
+import org.osmdroid.views.overlay.ScaleBarOverlay
+import org.osmdroid.views.overlay.TilesOverlay
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 import java.net.URL
 import java.net.URLEncoder
 import kotlin.concurrent.thread
 
-class MainActivity : Activity() {
+class MainActivity : AppCompatActivity() {
     private lateinit var map: MapView
     private lateinit var me: MyLocationNewOverlay
+    private lateinit var labels: TilesOverlay
     private var pin: Marker? = null
-    private var li = 0
+    private var layer = 0
+    private val chipIds = listOf(R.id.chipMap, R.id.chipSat, R.id.chipTopo)
 
-    // Esri World Imagery (OSM has no satellite imagery). Esri URL order is z/y/x.
-    private val sat = object : OnlineTileSourceBase(
-        "EsriSat", 0, 19, 256, ".jpg",
-        arrayOf("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/"),
-        "Imagery © Esri, Maxar, Earthstar Geographics"
+    // Esri tile URLs are z/y/x
+    private fun esri(name: String, path: String, ext: String): OnlineTileSourceBase = object : OnlineTileSourceBase(
+        name, 0, 19, 256, ext, arrayOf("https://server.arcgisonline.com/ArcGIS/rest/services/$path/MapServer/tile/"), "© Esri, Maxar"
     ) {
-        override fun getTileURLString(i: Long) =
-            "$baseUrl${MapTileIndex.getZoom(i)}/${MapTileIndex.getY(i)}/${MapTileIndex.getX(i)}"
+        override fun getTileURLString(i: Long) = "$baseUrl${MapTileIndex.getZoom(i)}/${MapTileIndex.getY(i)}/${MapTileIndex.getX(i)}"
     }
-    private val layers = listOf("Street" to TileSourceFactory.MAPNIK, "Satellite" to sat, "Topo" to TileSourceFactory.OpenTopo)
+    private val sources = listOf(TileSourceFactory.MAPNIK, esri("EsriSat", "World_Imagery", ".jpg"), TileSourceFactory.OpenTopo)
+
+    private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
+    private fun toast(s: String) = Toast.makeText(this, s, Toast.LENGTH_SHORT).show()
 
     override fun onCreate(b: Bundle?) {
         super.onCreate(b)
-        Configuration.getInstance().apply { load(this@MainActivity, getSharedPreferences("osm", 0)); userAgentValue = packageName }
-        map = MapView(this).apply {
+        Configuration.getInstance().apply {
+            load(this@MainActivity, getSharedPreferences("osm", 0))
+            userAgentValue = packageName
+            tileDownloadThreads = 4.toShort(); tileFileSystemThreads = 4.toShort()
+            tileDownloadMaxQueueSize = 60.toShort(); tileFileSystemMaxQueueSize = 60.toShort()
+            tileFileSystemCacheMaxBytes = 800L * 1024 * 1024; tileFileSystemCacheTrimBytes = 600L * 1024 * 1024
+        }
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        setContentView(R.layout.activity_main)
+        val root = findViewById<FrameLayout>(R.id.root)
+        val top = findViewById<View>(R.id.top)
+        val fab = findViewById<FloatingActionButton>(R.id.locate)
+        val q = findViewById<EditText>(R.id.query)
+        val clear = findViewById<ImageButton>(R.id.clear)
+        WindowCompat.getInsetsController(window, root)?.apply { isAppearanceLightStatusBars = true; isAppearanceLightNavigationBars = true }
+
+        map = findViewById(R.id.map)
+        map.apply {
+            isTilesScaledToDpi = true   // far fewer, sharper tiles = much smoother
             setMultiTouchControls(true)
-            controller.setZoom(3.0); controller.setCenter(GeoPoint(20.0, 0.0))
+            zoomController.setVisibility(CustomZoomButtonsController.Visibility.NEVER)
+            isVerticalMapRepetitionEnabled = false
+            minZoomLevel = 3.0
         }
+        val sp = getSharedPreferences("view", 0)
+        map.controller.setZoom(sp.getFloat("z", 3f).toDouble())
+        map.controller.setCenter(GeoPoint(sp.getFloat("lat", 20f).toDouble(), sp.getFloat("lon", 0f).toDouble()))
+
+        val provider = MapTileProviderBasic(applicationContext)
+        provider.setTileSource(esri("EsriLabels", "Reference/World_Boundaries_and_Places", ".png"))
+        labels = TilesOverlay(provider, this).apply { loadingBackgroundColor = Color.TRANSPARENT; loadingLineColor = Color.TRANSPARENT }
+
         me = MyLocationNewOverlay(GpsMyLocationProvider(this), map)
-        map.overlays.add(me)
+        val scale = ScaleBarOverlay(map).apply { setAlignBottom(true) }
+        map.overlays.addAll(listOf(me, scale))
+        chipIds.forEachIndexed { i, id -> findViewById<Chip>(id).setOnClickListener { setLayer(i) } }
+        setLayer(sp.getInt("layer", 0))
 
-        val q = EditText(this).apply {
-            hint = "Search places"; setSingleLine(); imeOptions = EditorInfo.IME_ACTION_SEARCH
-            setBackgroundColor(Color.WHITE); setTextColor(Color.BLACK); setHintTextColor(Color.GRAY); setPadding(32, 32, 32, 32)
-            setOnEditorActionListener { v, _, _ -> search(v.text.toString()); true }
+        ViewCompat.setOnApplyWindowInsetsListener(root) { _, ins ->
+            val bars = ins.getInsets(WindowInsetsCompat.Type.systemBars())
+            top.setPadding(dp(12), bars.top + dp(12), dp(12), 0)
+            (fab.layoutParams as FrameLayout.LayoutParams).bottomMargin = bars.bottom + dp(20)
+            fab.requestLayout()
+            scale.setScaleBarOffset(dp(16), bars.bottom + dp(24))
+            ins
         }
-        val layerBtn = Button(this).apply {
-            text = layers[0].first
-            setOnClickListener { li = (li + 1) % layers.size; map.setTileSource(layers[li].second); text = layers[li].first }
-        }
-        val locBtn = Button(this).apply { text = "Locate"; setOnClickListener { locate() } }
-        val bar = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; addView(layerBtn); addView(locBtn) }
 
-        setContentView(FrameLayout(this).apply {
-            addView(map, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
-            addView(q, FrameLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT, Gravity.TOP))
-            addView(bar, FrameLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT, Gravity.BOTTOM or Gravity.END).apply { setMargins(0, 0, 24, 96) })
+        fab.setOnClickListener { locate() }
+        q.setOnEditorActionListener { v, _, _ -> search(v.text.toString()); true }
+        q.addTextChangedListener(object : TextWatcher {
+            override fun afterTextChanged(s: Editable?) { clear.visibility = if (s.isNullOrEmpty()) View.GONE else View.VISIBLE }
+            override fun beforeTextChanged(s: CharSequence?, a: Int, c: Int, d: Int) {}
+            override fun onTextChanged(s: CharSequence?, a: Int, c: Int, d: Int) {}
         })
+        clear.setOnClickListener { q.text.clear(); pin?.let { map.overlays.remove(it); pin = null; map.invalidate() } }
     }
 
-    private fun toast(s: String) = Toast.makeText(this, s, Toast.LENGTH_SHORT).show()
+    private fun setLayer(i: Int) {
+        layer = i
+        map.setTileSource(sources[i])
+        if (i == 1) { if (!map.overlays.contains(labels)) map.overlays.add(0, labels) } else map.overlays.remove(labels)
+        findViewById<Chip>(chipIds[i]).isChecked = true
+        map.invalidate()
+    }
 
     private fun locate() {
         if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -83,25 +133,38 @@ class MainActivity : Activity() {
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) locate()
     }
 
-    private fun search(text: String) = thread {
-        try {
-            val url = "https://nominatim.openstreetmap.org/search?format=json&limit=1&q=" + URLEncoder.encode(text, "UTF-8")
-            val c = URL(url).openConnection().apply { setRequestProperty("User-Agent", packageName) }
-            val r = JSONArray(c.getInputStream().bufferedReader().readText())
-            runOnUiThread {
-                if (r.length() == 0) { toast("Not found"); return@runOnUiThread }
-                val o = r.getJSONObject(0)
-                val p = GeoPoint(o.getDouble("lat"), o.getDouble("lon"))
-                pin?.let { map.overlays.remove(it) }
-                pin = Marker(map).apply { position = p; title = o.getString("display_name") }
-                map.overlays.add(pin); map.controller.setZoom(15.0); map.controller.animateTo(p); map.invalidate()
-            }
-        } catch (e: Exception) { runOnUiThread { toast("Search failed") } }
+    private fun search(text: String) {
+        if (text.isBlank()) return
+        (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager).hideSoftInputFromWindow(map.windowToken, 0)
+        thread {
+            try {
+                val url = "https://nominatim.openstreetmap.org/search?format=json&limit=1&q=" + URLEncoder.encode(text, "UTF-8")
+                val c = URL(url).openConnection().apply { setRequestProperty("User-Agent", packageName) }
+                val r = JSONArray(c.getInputStream().bufferedReader().readText())
+                runOnUiThread {
+                    if (r.length() == 0) { toast("No results"); return@runOnUiThread }
+                    val o = r.getJSONObject(0)
+                    val p = GeoPoint(o.getDouble("lat"), o.getDouble("lon"))
+                    val parts = o.getString("display_name").split(", ", limit = 2)
+                    pin?.let { map.overlays.remove(it) }
+                    val m = Marker(map).apply {
+                        position = p; icon = getDrawable(R.drawable.ic_pin); setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                        title = parts[0]; snippet = parts.getOrElse(1) { "" }
+                    }
+                    pin = m; map.overlays.add(m); map.controller.setZoom(15.0); map.controller.animateTo(p); m.showInfoWindow(); map.invalidate()
+                }
+            } catch (e: Exception) { runOnUiThread { toast("Search failed") } }
+        }
     }
 
     override fun onResume() { super.onResume(); map.onResume() }
-    override fun onPause() { super.onPause(); map.onPause() }
+    override fun onPause() {
+        super.onPause(); map.onPause()
+        getSharedPreferences("view", 0).edit().putFloat("lat", map.mapCenter.latitude.toFloat())
+            .putFloat("lon", map.mapCenter.longitude.toFloat()).putFloat("z", map.zoomLevelDouble.toFloat()).putInt("layer", layer).apply()
+    }
 }
