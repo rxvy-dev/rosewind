@@ -25,11 +25,11 @@
 
         <com.google.android.material.chip.ChipGroup android:layout_width="wrap_content" android:layout_height="wrap_content"
             android:layout_marginTop="8dp" app:singleSelection="true" app:selectionRequired="true" app:chipSpacingHorizontal="8dp">
-            <com.google.android.material.chip.Chip android:id="@+id/chipMap" style="@style/Widget.Material3.Chip.Filter"
+            <com.google.android.material.chip.Chip android:layout_width="wrap_content" android:layout_height="wrap_content" android:id="@+id/chipMap" style="@style/Widget.Material3.Chip.Filter"
                 android:text="Map" android:checked="true" app:chipBackgroundColor="@color/chip_bg" app:chipStrokeWidth="0dp" android:elevation="3dp" />
-            <com.google.android.material.chip.Chip android:id="@+id/chipSat" style="@style/Widget.Material3.Chip.Filter"
+            <com.google.android.material.chip.Chip android:layout_width="wrap_content" android:layout_height="wrap_content" android:id="@+id/chipSat" style="@style/Widget.Material3.Chip.Filter"
                 android:text="Satellite" app:chipBackgroundColor="@color/chip_bg" app:chipStrokeWidth="0dp" android:elevation="3dp" />
-            <com.google.android.material.chip.Chip android:id="@+id/chipTopo" style="@style/Widget.Material3.Chip.Filter"
+            <com.google.android.material.chip.Chip android:layout_width="wrap_content" android:layout_height="wrap_content" android:id="@+id/chipTopo" style="@style/Widget.Material3.Chip.Filter"
                 android:text="Terrain" app:chipBackgroundColor="@color/chip_bg" app:chipStrokeWidth="0dp" android:elevation="3dp" />
         </com.google.android.material.chip.ChipGroup>
     </LinearLayout>

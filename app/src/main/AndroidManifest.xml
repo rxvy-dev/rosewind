@@ -4,7 +4,7 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <application android:label="Open Maps" android:icon="@mipmap/ic_launcher" android:theme="@style/Theme.OpenMaps">
+    <application android:label="Wayglass" android:icon="@mipmap/ic_launcher" android:theme="@style/Theme.Wayglass">
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
